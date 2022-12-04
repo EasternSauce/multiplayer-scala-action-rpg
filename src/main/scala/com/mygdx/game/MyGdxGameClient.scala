@@ -1,15 +1,16 @@
-package com.mygdx.game.client
+package com.mygdx.game
 
+import com.badlogic.gdx.backends.lwjgl3.{Lwjgl3Application, Lwjgl3ApplicationConfiguration}
 import com.badlogic.gdx.graphics.g2d.Sprite
 import com.badlogic.gdx.{Gdx, Input}
 import com.esotericsoftware.kryonet.{Client, Connection, KryoSerialization, Listener}
-import com.mygdx.game._
-import com.mygdx.game.actions.{ActionsWrapper, AddPlayer}
+import com.mygdx.game.actions.{ActionsWrapper, AddPlayer, RemovePlayer}
 import com.mygdx.game.message._
 import com.mygdx.game.model.GameState
 import com.twitter.chill.{Kryo, ScalaKryoInstantiator}
 
-case class PlayScreenClient() extends MyGdxGamePlayScreen {
+object MyGdxGameClient extends MyGdxGame {
+  override val playScreen: MyGdxGamePlayScreen = MyGdxGamePlayScreen(this)
 
   override val endPoint: Client = {
     val kryo: Kryo = {
@@ -24,7 +25,13 @@ case class PlayScreenClient() extends MyGdxGamePlayScreen {
     new Client(8192, 2048, new KryoSerialization(kryo))
   }
 
-  var playerId: String = "Player " + scala.util.Random.nextInt()
+  val playerId: String = "Player " + scala.util.Random.nextInt()
+
+  override def create(): Unit = {
+    super.create()
+    setScreen(playScreen)
+
+  }
 
   override def onUpdate(): Unit = {
     if (Gdx.input.isKeyPressed(Input.Keys.A)) {
@@ -43,8 +50,8 @@ case class PlayScreenClient() extends MyGdxGamePlayScreen {
       endPoint.sendTCP(MovementCommandDown(playerId))
 
     }
-
   }
+
 
   override def establishConnection(): Unit = {
 
@@ -63,6 +70,8 @@ case class PlayScreenClient() extends MyGdxGamePlayScreen {
             tickActions.foreach {
               case AddPlayer(playerId, _, _) =>
                 playerSprites = playerSprites.updated(playerId, new Sprite(img, 64, 64))
+              case RemovePlayer(playerId) =>
+                playerSprites = playerSprites.removed(playerId)
               case _ =>
             }
 
@@ -77,5 +86,18 @@ case class PlayScreenClient() extends MyGdxGamePlayScreen {
 
     endPoint.sendTCP(AskInitPlayer(playerId, scala.util.Random.nextInt().abs % 300, scala.util.Random.nextInt().abs % 300))
 
+  }
+
+  override def dispose(): Unit = {
+    endPoint.sendTCP(AskDeletePlayer(playerId))
+  }
+
+  def main(arg: Array[String]): Unit = {
+    val config = new Lwjgl3ApplicationConfiguration
+    config.setTitle("Drop")
+    config.setWindowedMode(800, 480)
+    config.useVsync(true)
+    config.setForegroundFPS(60)
+    new Lwjgl3Application(MyGdxGameClient, config)
   }
 }
