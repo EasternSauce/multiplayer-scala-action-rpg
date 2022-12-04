@@ -61,12 +61,11 @@ abstract class MyGdxGame extends Game {
 
   def onRender(): Unit = {
     playerSprites.foreach {
-      case (playerId, sprite) => sprite.setPosition(gameState.players(playerId).x, gameState.players(playerId).y)
+      case (playerId, sprite) => if (gameState.players.contains(playerId)) sprite.setPosition(gameState.players(playerId).x, gameState.players(playerId).y)
     }
 
     ScreenUtils.clear(1, 0, 0, 1)
     batch.begin()
-    //    batch.draw(img, gameState.x, gameState.y)
     playerSprites.foreach {
       case (_, sprite) =>
         sprite.draw(batch)

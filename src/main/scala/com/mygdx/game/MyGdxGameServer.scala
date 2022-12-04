@@ -40,6 +40,8 @@ object MyGdxGameServer extends MyGdxGame {
     actions.foreach {
       case AddPlayer(playerId, _, _) =>
         playerSprites = playerSprites.updated(playerId, new Sprite(img, 64, 64))
+      case RemovePlayer(playerId) =>
+        playerSprites = playerSprites.removed(playerId)
       case _ =>
     }
 
