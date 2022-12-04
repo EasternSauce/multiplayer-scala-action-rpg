@@ -1,40 +1,17 @@
 package com.mygdx.game.client
 
-import com.badlogic.gdx.{Gdx, Input, Screen}
-import com.badlogic.gdx.graphics.Texture
-import com.badlogic.gdx.graphics.g2d.SpriteBatch
-import com.badlogic.gdx.utils.ScreenUtils
-import com.badlogic.gdx.utils.viewport.Viewport
+import com.badlogic.gdx.graphics.g2d.Sprite
+import com.badlogic.gdx.{Gdx, Input}
 import com.esotericsoftware.kryonet.{Client, Connection, KryoSerialization, Listener}
-import com.mygdx.game.actions.ActionsWrapper
-import com.mygdx.game.{GameState, MovementCommandDown, MovementCommandLeft, MovementCommandRight, MovementCommandUp, MyGdxGamePlayScreen}
+import com.mygdx.game._
+import com.mygdx.game.actions.{ActionsWrapper, AddPlayer}
+import com.mygdx.game.message._
+import com.mygdx.game.model.GameState
 import com.twitter.chill.{Kryo, ScalaKryoInstantiator}
 
 case class PlayScreenClient() extends MyGdxGamePlayScreen {
 
-  var client: Client = _
-
-  override def onUpdate(): Unit = {
-    if (Gdx.input.isKeyPressed(Input.Keys.A)) {
-      client.sendTCP(MovementCommandLeft)
-
-    }
-    if (Gdx.input.isKeyPressed(Input.Keys.D)) {
-      client.sendTCP(MovementCommandRight)
-
-    }
-    if (Gdx.input.isKeyPressed(Input.Keys.W)) {
-      client.sendTCP(MovementCommandUp)
-
-    }
-    if (Gdx.input.isKeyPressed(Input.Keys.S)) {
-      client.sendTCP(MovementCommandDown)
-
-    }
-
-  }
-
-  override def establishConnection(): Unit = {
+  override val endPoint: Client = {
     val kryo: Kryo = {
       val instantiator = new ScalaKryoInstantiator
       instantiator.setRegistrationRequired(true)
@@ -44,14 +21,38 @@ case class PlayScreenClient() extends MyGdxGamePlayScreen {
     kryo.register(classOf[GameState])
     kryo.register(classOf[ActionsWrapper])
 
-    client = new Client(8192, 2048, new KryoSerialization(kryo))
+    new Client(8192, 2048, new KryoSerialization(kryo))
+  }
+
+  var playerId: String = "Player " + scala.util.Random.nextInt()
+
+  override def onUpdate(): Unit = {
+    if (Gdx.input.isKeyPressed(Input.Keys.A)) {
+      endPoint.sendTCP(MovementCommandLeft(playerId))
+
+    }
+    if (Gdx.input.isKeyPressed(Input.Keys.D)) {
+      endPoint.sendTCP(MovementCommandRight(playerId))
+
+    }
+    if (Gdx.input.isKeyPressed(Input.Keys.W)) {
+      endPoint.sendTCP(MovementCommandUp(playerId))
+
+    }
+    if (Gdx.input.isKeyPressed(Input.Keys.S)) {
+      endPoint.sendTCP(MovementCommandDown(playerId))
+
+    }
+
+  }
+
+  override def establishConnection(): Unit = {
+
+    endPoint.start()
+    endPoint.connect(5000, "127.0.0.1", 54555, 54777)
 
 
-    client.start()
-    client.connect(5000, "127.0.0.1", 54555, 54777)
-
-
-    client.addListener(new Listener() {
+    endPoint.addListener(new Listener() {
       override def received(connection: Connection, obj: Any): Unit = {
         obj match {
           case newGameState: GameState =>
@@ -59,11 +60,22 @@ case class PlayScreenClient() extends MyGdxGamePlayScreen {
           case ActionsWrapper(tickActions) =>
             val newGameState = tickActions.foldLeft(gameState)((gameState, action) => action.applyToGameState(gameState))
 
+            tickActions.foreach {
+              case AddPlayer(playerId, _, _) =>
+                playerSprites = playerSprites.updated(playerId, new Sprite(img, 64, 64))
+              case _ =>
+            }
+
             gameState = newGameState
+          case InitialState(initGameState) =>
+            gameState = initGameState
+            playerSprites = gameState.players.map { case (playerId, _) => (playerId, new Sprite(img, 64, 64)) }
           case _ =>
         }
       }
     })
+
+    endPoint.sendTCP(AskInitPlayer(playerId, scala.util.Random.nextInt().abs % 300, scala.util.Random.nextInt().abs % 300))
 
   }
 }

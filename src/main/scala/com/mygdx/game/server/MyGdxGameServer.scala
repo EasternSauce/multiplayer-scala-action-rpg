@@ -2,12 +2,7 @@ package com.mygdx.game.server
 
 import com.badlogic.gdx.Game
 import com.badlogic.gdx.backends.lwjgl3.{Lwjgl3Application, Lwjgl3ApplicationConfiguration}
-import com.esotericsoftware.kryonet.{Connection, KryoSerialization, Listener, Server}
 import com.mygdx.game._
-import com.mygdx.game.client.PlayScreenClient
-import com.twitter.chill.{Kryo, ScalaKryoInstantiator}
-
-import scala.jdk.CollectionConverters.ListHasAsScala
 
 object MyGdxGameServer extends Game {
 

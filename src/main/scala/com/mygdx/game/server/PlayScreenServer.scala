@@ -1,13 +1,11 @@
 package com.mygdx.game.server
 
-import com.badlogic.gdx.Screen
-import com.badlogic.gdx.graphics.Texture
-import com.badlogic.gdx.graphics.g2d.SpriteBatch
-import com.badlogic.gdx.utils.ScreenUtils
-import com.badlogic.gdx.utils.viewport.Viewport
+import com.badlogic.gdx.graphics.g2d.Sprite
 import com.esotericsoftware.kryonet.{Connection, KryoSerialization, Listener, Server}
-import com.mygdx.game.actions.{ActionsWrapper, GameStateAction, PositionChangeX, PositionChangeY}
-import com.mygdx.game.{GameState, MovementCommandDown, MovementCommandLeft, MovementCommandRight, MovementCommandUp, MyGdxGamePlayScreen}
+import com.mygdx.game.MyGdxGamePlayScreen
+import com.mygdx.game.actions._
+import com.mygdx.game.message._
+import com.mygdx.game.model.GameState
 import com.twitter.chill.{Kryo, ScalaKryoInstantiator}
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
@@ -16,38 +14,57 @@ case class PlayScreenServer() extends MyGdxGamePlayScreen {
 
   private val tickActions: java.util.Vector[GameStateAction] = new java.util.Vector()
 
-  var server: Server = _
+  override val endPoint: Server = {
+    val kryo: Kryo = {
+      val instantiator = new ScalaKryoInstantiator
+      instantiator.setRegistrationRequired(false)
+      instantiator.newKryo()
+    }
 
-  private def broadcastGameState(server: Server): Unit = {
+    kryo.register(classOf[GameState])
+    kryo.register(classOf[ActionsWrapper])
+
+    new Server(16384, 2048, new KryoSerialization(kryo))
+  }
+
+
+  private def broadcastGameState(): Unit = {
     while (true) {
       Thread.sleep(3000)
-      server.sendToAllTCP(gameState)
+      endPoint.sendToAllTCP(gameState)
     }
   }
 
-  private def runServer(server: Server): Unit = {
-    server.start()
-    server.bind(54555, 54777)
+  private def runServer(): Unit = {
+    endPoint.start()
+    endPoint.bind(54555, 54777)
 
-    server.addListener(new Listener() {
+    endPoint.addListener(new Listener() {
       override def received(connection: Connection, obj: Any): Unit = {
         obj match {
 
-          case MovementCommandUp =>
-            val posChange = PositionChangeY(gameState.y + 1)
+          case MovementCommandUp(playerId) =>
+            val posChange = PositionChangeY(playerId, gameState.players(playerId).y + 1)
             tickActions.add(posChange)
 
-          case MovementCommandDown =>
-            val posChange = PositionChangeY(gameState.y - 1)
+          case MovementCommandDown(playerId) =>
+            val posChange = PositionChangeY(playerId, gameState.players(playerId).y - 1)
             tickActions.add(posChange)
 
-          case MovementCommandLeft =>
-            val posChange = PositionChangeX(gameState.x - 1)
+          case MovementCommandLeft(playerId) =>
+            val posChange = PositionChangeX(playerId, gameState.players(playerId).x - 1)
             tickActions.add(posChange)
 
-          case MovementCommandRight =>
-            val posChange = PositionChangeX(gameState.x + 1)
+          case MovementCommandRight(playerId) =>
+            val posChange = PositionChangeX(playerId, gameState.players(playerId).x + 1)
             tickActions.add(posChange)
+
+          case AskInitPlayer(playerId, x, y) =>
+            val addPlayer = AddPlayer(playerId, x, y)
+            tickActions.add(addPlayer)
+
+            connection.sendTCP(InitialState(gameState))
+
 
           case _ =>
         }
@@ -60,33 +77,29 @@ case class PlayScreenServer() extends MyGdxGamePlayScreen {
     // we need to copy before we convert, otherwise ConcurrentModificationExeption happens
     val actions = new java.util.Vector[GameStateAction](tickActions).asScala.toList
 
+    actions.foreach {
+      case AddPlayer(playerId, _, _) =>
+        playerSprites = playerSprites.updated(playerId, new Sprite(img, 64, 64))
+      case _ =>
+    }
+
     val newGameState = actions.foldLeft(gameState)((gameState, action) => action.applyToGameState(gameState))
 
     gameState = newGameState
 
-    server.sendToAllTCP(ActionsWrapper(actions))
+    endPoint.sendToAllTCP(ActionsWrapper(actions))
 
     tickActions.clear()
   }
 
   override def establishConnection(): Unit = {
-    val kryo: Kryo = {
-      val instantiator = new ScalaKryoInstantiator
-      instantiator.setRegistrationRequired(false)
-      instantiator.newKryo()
-    }
-
-    kryo.register(classOf[GameState])
-    kryo.register(classOf[ActionsWrapper])
-
-    server = new Server(16384, 2048, new KryoSerialization(kryo))
 
     new Thread() {
-      override def run(): Unit = runServer(server)
+      override def run(): Unit = runServer()
     }.start()
 
     new Thread() {
-      override def run(): Unit = broadcastGameState(server)
+      override def run(): Unit = broadcastGameState()
     }.start()
 
   }

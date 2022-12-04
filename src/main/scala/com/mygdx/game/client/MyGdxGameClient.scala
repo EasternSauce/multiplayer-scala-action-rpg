@@ -1,11 +1,8 @@
 package com.mygdx.game.client
 
+import com.badlogic.gdx.Game
 import com.badlogic.gdx.backends.lwjgl3.{Lwjgl3Application, Lwjgl3ApplicationConfiguration}
-import com.badlogic.gdx.{Game, Gdx, Input}
-import com.esotericsoftware.kryonet.{Client, Connection, KryoSerialization, Listener}
-import com.mygdx.game.actions.ActionsWrapper
 import com.mygdx.game._
-import com.twitter.chill.{Kryo, ScalaKryoInstantiator}
 
 object MyGdxGameClient extends Game {
 
