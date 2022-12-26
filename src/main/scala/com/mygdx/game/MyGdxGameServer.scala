@@ -39,9 +39,9 @@ object MyGdxGameServer extends MyGdxGame {
 
     actions.foreach {
       case AddPlayer(playerId, _, _) =>
-        playerSprites = playerSprites.updated(playerId, new Sprite(img, 64, 64))
+        creatureSprites = creatureSprites.updated(playerId, new Sprite(img, 64, 64))
       case RemovePlayer(playerId) =>
-        playerSprites = playerSprites.removed(playerId)
+        creatureSprites = creatureSprites.removed(playerId)
       case _ =>
     }
 
@@ -82,26 +82,28 @@ object MyGdxGameServer extends MyGdxGame {
         obj match {
 
           case MovementCommandUp(playerId) =>
-            val posChange = PositionChangeY(playerId, gameState.players(playerId).y + 1)
+            val posChange = PositionChangeY(playerId, gameState.creatures(playerId).params.pos.y + 1)
             tickActions.add(posChange)
 
           case MovementCommandDown(playerId) =>
-            val posChange = PositionChangeY(playerId, gameState.players(playerId).y - 1)
+            val posChange = PositionChangeY(playerId, gameState.creatures(playerId).params.pos.y - 1)
             tickActions.add(posChange)
 
           case MovementCommandLeft(playerId) =>
-            val posChange = PositionChangeX(playerId, gameState.players(playerId).x - 1)
+            val posChange = PositionChangeX(playerId, gameState.creatures(playerId).params.pos.x - 1)
             tickActions.add(posChange)
 
           case MovementCommandRight(playerId) =>
-            val posChange = PositionChangeX(playerId, gameState.players(playerId).x + 1)
+            val posChange = PositionChangeX(playerId, gameState.creatures(playerId).params.pos.x + 1)
             tickActions.add(posChange)
 
           case AskInitPlayer(playerId, x, y) =>
             val addPlayer = AddPlayer(playerId, x, y)
             tickActions.add(addPlayer)
 
-            connection.sendTCP(InitialState(gameState))
+            if (gameState.getPlayers.isEmpty) {
+              connection.sendTCP(InitialState(gameState))
+            }
 
           case AskDeletePlayer(playerId) =>
             val removePlayer = RemovePlayer(playerId)
@@ -112,7 +114,6 @@ object MyGdxGameServer extends MyGdxGame {
       }
     })
   }
-
 
   def main(arg: Array[String]): Unit = {
     val config = new Lwjgl3ApplicationConfiguration

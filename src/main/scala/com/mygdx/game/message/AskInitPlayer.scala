@@ -1,3 +1,5 @@
 package com.mygdx.game.message
 
-case class AskInitPlayer(id: String, x: Float, y: Float)
+import com.mygdx.game.model.ids.CreatureId
+
+case class AskInitPlayer(id: CreatureId, x: Float, y: Float)

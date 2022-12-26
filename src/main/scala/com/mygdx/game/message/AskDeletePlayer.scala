@@ -1,3 +1,5 @@
 package com.mygdx.game.message
 
-case class AskDeletePlayer(id: String)
+import com.mygdx.game.model.ids.CreatureId
+
+case class AskDeletePlayer(id: CreatureId)

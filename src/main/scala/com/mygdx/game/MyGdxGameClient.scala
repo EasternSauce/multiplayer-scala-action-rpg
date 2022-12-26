@@ -7,6 +7,7 @@ import com.esotericsoftware.kryonet.{Client, Connection, KryoSerialization, List
 import com.mygdx.game.actions.{ActionsWrapper, AddPlayer, RemovePlayer}
 import com.mygdx.game.message._
 import com.mygdx.game.model.GameState
+import com.mygdx.game.model.ids.CreatureId
 import com.twitter.chill.{Kryo, ScalaKryoInstantiator}
 
 object MyGdxGameClient extends MyGdxGame {
@@ -25,7 +26,7 @@ object MyGdxGameClient extends MyGdxGame {
     new Client(8192, 2048, new KryoSerialization(kryo))
   }
 
-  val playerId: String = "Player " + scala.util.Random.nextInt()
+  val playerId: CreatureId = CreatureId("Player " + scala.util.Random.nextInt())
 
   override def create(): Unit = {
     super.create()
@@ -52,12 +53,10 @@ object MyGdxGameClient extends MyGdxGame {
     }
   }
 
-
   override def establishConnection(): Unit = {
 
     endPoint.start()
     endPoint.connect(5000, "127.0.0.1", 54555, 54777)
-
 
     endPoint.addListener(new Listener() {
       override def received(connection: Connection, obj: Any): Unit = {
@@ -65,26 +64,29 @@ object MyGdxGameClient extends MyGdxGame {
           case newGameState: GameState =>
             gameState = newGameState
           case ActionsWrapper(tickActions) =>
-            val newGameState = tickActions.foldLeft(gameState)((gameState, action) => action.applyToGameState(gameState))
+            val newGameState =
+              tickActions.foldLeft(gameState)((gameState, action) => action.applyToGameState(gameState))
 
             tickActions.foreach {
               case AddPlayer(playerId, _, _) =>
-                playerSprites = playerSprites.updated(playerId, new Sprite(img, 64, 64))
+                creatureSprites = creatureSprites.updated(playerId, new Sprite(img, 64, 64))
               case RemovePlayer(playerId) =>
-                playerSprites = playerSprites.removed(playerId)
+                creatureSprites = creatureSprites.removed(playerId)
               case _ =>
             }
 
             gameState = newGameState
           case InitialState(initGameState) =>
             gameState = initGameState
-            playerSprites = gameState.players.map { case (playerId, _) => (playerId, new Sprite(img, 64, 64)) }
+            creatureSprites = gameState.creatures.map { case (playerId, _) => (playerId, new Sprite(img, 64, 64)) }
           case _ =>
         }
       }
     })
 
-    endPoint.sendTCP(AskInitPlayer(playerId, scala.util.Random.nextInt().abs % 300, scala.util.Random.nextInt().abs % 300))
+    endPoint.sendTCP(
+      AskInitPlayer(playerId, scala.util.Random.nextInt().abs % 300, scala.util.Random.nextInt().abs % 300)
+    )
 
   }
 

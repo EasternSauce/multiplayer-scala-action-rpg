@@ -17,13 +17,13 @@ case class MyGdxGamePlayScreen(game: MyGdxGame) extends Screen {
   var worldViewport: FitViewport = _
 
   def init(): Unit = {
-     world = new World(new Vector2(0, 0), true)
+    world = new World(new Vector2(0, 0), true)
 
-     debugRenderer = new Box2DDebugRenderer()
+    debugRenderer = new Box2DDebugRenderer()
 
-     worldCamera = new OrthographicCamera()
+    worldCamera = new OrthographicCamera()
 
-     worldViewport = new FitViewport(
+    worldViewport = new FitViewport(
       Constants.ViewpointWorldWidth / Constants.PPM,
       Constants.ViewpointWorldHeight / Constants.PPM,
       worldCamera
@@ -33,7 +33,6 @@ case class MyGdxGamePlayScreen(game: MyGdxGame) extends Screen {
   override def render(delta: Float): Unit = {
     world.step(1 / 60f, 6, 2)
     debugRenderer.render(world, worldCamera.combined)
-
 
     game.onUpdate()
 
